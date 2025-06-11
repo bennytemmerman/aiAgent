@@ -117,26 +117,35 @@ def generate_content(client, messages, verbose):
         ),
     )
 
-    if response.candidates and response.candidates[0].content.parts:
-        part = response.candidates[0].content.parts[0]
+    # Get the candidate response
+    candidate = response.candidates[0]
+    parts = candidate.content.parts
 
-        if isinstance(part, types.FunctionCall):
-            # Run the function
-            function_call_result = call_function(part, verbose=verbose)
-
-            # Sanity check
-            try:
-                result_data = function_call_result.parts[0].function_response.response
-            except Exception as e:
-                raise RuntimeError("Fatal: invalid function call response") from e
-
-            if verbose:
-                print(f"-> {result_data}")
-        else:
-            print("Response:")
-            print(response.text)
-    else:
+    if not parts:
         print("No response from model.")
+        return
+
+    part = parts[0]
+
+    if isinstance(part, types.FunctionCall):
+        # Call the tool
+        function_call_result = call_function(part, verbose=verbose)
+
+        try:
+            result_data = function_call_result.parts[0].function_response.response
+        except Exception as e:
+            raise RuntimeError("Fatal: invalid function call response") from e
+
+        if verbose:
+            print(f"-> {result_data['result']}")
+        else:
+            print(result_data["result"])
+
+    else:
+        # Just plain text
+        print("Response:")
+        print("".join(p.text for p in parts if hasattr(p, "text")))
+
         
 def call_function(function_call_part, verbose=False):
     function_name = function_call_part.name
