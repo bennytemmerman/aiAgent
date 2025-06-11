@@ -144,7 +144,7 @@ def generate_content(client, messages, verbose):
     else:
         # Just plain text
         print("Response:")
-        print("".join(p.text for p in parts if hasattr(p, "text")))
+        print("".join(p.text or "" for p in parts if hasattr(p, "text")))
 
         
 def call_function(function_call_part, verbose=False):
