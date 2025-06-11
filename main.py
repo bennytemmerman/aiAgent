@@ -1,57 +1,48 @@
-import os
 import sys
-from dotenv import load_dotenv
+import os
 from google import genai
 from google.genai import types
+from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
 
-# Retrieve the API key
-api_key = os.environ.get("GEMINI_API_KEY")
+def main():
+    load_dotenv()
 
-# Check if a prompt was provided
-if len(sys.argv) < 2:
-    print("Error: No prompt provided.")
-    print("Usage: python main.py \"Your prompt here\"")
-    sys.exit(1)
+    verbose = "--verbose" in sys.argv
+    args = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
 
-# Extract --verbose flag if present
-verbose = False
-args = sys.argv[1:]
+    if not args:
+        print("AI Code Assistant")
+        print('\nUsage: python main.py "your prompt here" [--verbose]')
+        print('Example: python main.py "How do I build a calculator app?"')
+        sys.exit(1)
 
-if "--verbose" in args:
-    verbose = True
-    args.remove("--verbose")
+    api_key = os.environ.get("GEMINI_API_KEY")
+    client = genai.Client(api_key=api_key)
 
-# Join remaining args as the prompt
-user_prompt = " ".join(args)
+    user_prompt = " ".join(args)
 
-if not user_prompt:
-    print("Error: No prompt provided.")
-    print("Usage: python main.py \"Your prompt here\" [--verbose]")
-    sys.exit(1)
+    if verbose:
+        print(f"User prompt: {user_prompt}\n")
 
-# Create the messages list using types.Content
-messages = [
-    types.Content(role="user", parts=[types.Part(text=user_prompt)]),
-]
+    messages = [
+        types.Content(role="user", parts=[types.Part(text=user_prompt)]),
+    ]
 
-# Initialize the Gemini client
-client = genai.Client(api_key=api_key)
+    generate_content(client, messages, verbose)
 
-# Generate content using the provided prompt
-response = client.models.generate_content(
-    model="gemini-2.0-flash-001",
-    contents=messages,
-)
 
-# Print the model's response
-print("\nResponse:")
-print(response.text)
+def generate_content(client, messages, verbose):
+    response = client.models.generate_content(
+        model="gemini-2.0-flash-001",
+        contents=messages,
+    )
+    if verbose:
+        print("Prompt tokens:", response.usage_metadata.prompt_token_count)
+        print("Response tokens:", response.usage_metadata.candidates_token_count)
+    print("Response:")
+    print(response.text)
 
-# If verbose, show prompt and token usage
-if verbose:
-    print(f"\nUser prompt: {user_prompt}")
-    print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
-    print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+
+if __name__ == "__main__":
+    main()
