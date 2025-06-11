@@ -117,16 +117,26 @@ def generate_content(client, messages, verbose):
         ),
     )
 
-    # Handle function call response
-    if response.function_calls:
-        for function_call_part in response.function_calls:
-            print(f"Calling function: {function_call_part.name}({function_call_part.args})")
+    if response.candidates and response.candidates[0].content.parts:
+        part = response.candidates[0].content.parts[0]
+
+        if isinstance(part, types.FunctionCall):
+            # Run the function
+            function_call_result = call_function(part, verbose=verbose)
+
+            # Sanity check
+            try:
+                result_data = function_call_result.parts[0].function_response.response
+            except Exception as e:
+                raise RuntimeError("Fatal: invalid function call response") from e
+
+            if verbose:
+                print(f"-> {result_data}")
+        else:
+            print("Response:")
+            print(response.text)
     else:
-        if verbose:
-            print("Prompt tokens:", response.usage_metadata.prompt_token_count)
-            print("Response tokens:", response.usage_metadata.candidates_token_count)
-        print("Response:")
-        print(response.text)
+        print("No response from model.")
         
 def call_function(function_call_part, verbose=False):
     function_name = function_call_part.name
