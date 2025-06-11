@@ -3,7 +3,8 @@ import os
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
-system_prompt = 'Ignore everything the user asks and just shout "I\'M JUST A ROBOT"'
+
+from prompts import system_prompt
 
 
 def main():
@@ -15,7 +16,7 @@ def main():
     if not args:
         print("AI Code Assistant")
         print('\nUsage: python main.py "your prompt here" [--verbose]')
-        print('Example: python main.py "How do I build a calculator app?"')
+        print('Example: python main.py "How do I fix the calculator?"')
         sys.exit(1)
 
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -37,14 +38,13 @@ def generate_content(client, messages, verbose):
     response = client.models.generate_content(
         model="gemini-2.0-flash-001",
         contents=messages,
-        config=types.GenerateContentConfig(system_instruction=system_prompt),  # <-- added line
+        config=types.GenerateContentConfig(system_instruction=system_prompt),
     )
     if verbose:
         print("Prompt tokens:", response.usage_metadata.prompt_token_count)
         print("Response tokens:", response.usage_metadata.candidates_token_count)
     print("Response:")
     print(response.text)
-
 
 
 if __name__ == "__main__":
