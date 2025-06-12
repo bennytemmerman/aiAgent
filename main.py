@@ -35,36 +35,41 @@ def main():
     generate_content(client, messages, verbose)
 
 
-def generate_content(client, messages, verbose):
-    response = client.models.generate_content(
-        model="gemini-2.0-flash-001",
-        contents=messages,
-        config=types.GenerateContentConfig(
-            tools=[available_functions], system_instruction=system_prompt
-        ),
-    )
-    if verbose:
-        print("Prompt tokens:", response.usage_metadata.prompt_token_count)
-        print("Response tokens:", response.usage_metadata.candidates_token_count)
-
-    if not response.function_calls:
-        return response.text
-
-    function_responses = []
-    for function_call_part in response.function_calls:
-        function_call_result = call_function(function_call_part, verbose)
-        if (
-            not function_call_result.parts
-            or not function_call_result.parts[0].function_response
-        ):
-            raise Exception("empty function call result")
+def generate_content(client, messages, verbose=False):
+    for iteration in range(20):
         if verbose:
-            print(f"-> {function_call_result.parts[0].function_response.response}")
-        function_responses.append(function_call_result.parts[0])
+            print(f"\n--- Iteration {iteration + 1} ---")
 
-    if not function_responses:
-        raise Exception("no function responses generated, exiting.")
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-001",
+            contents=messages,
+            tools=[available_functions],
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt
+            ),
+        )
 
+        if verbose and hasattr(response, "usage_metadata"):
+            print("Prompt tokens:", response.usage_metadata.prompt_token_count)
+            print("Response tokens:", response.usage_metadata.candidates_token_count)
+
+        function_called = False
+
+        for candidate in response.candidates:
+            content = candidate.content
+            messages.append(content)
+
+            for part in content.parts:
+                if hasattr(part, "function_call") and part.function_call:
+                    function_called = True
+                    function_result = call_function(part.function_call, verbose=verbose)
+                    messages.append(function_result)
+
+        if not function_called:
+            # Final result — LLM has no more function calls, just a response
+            print("\nFinal response:")
+            print("".join(p.text or "" for p in messages[-1].parts if hasattr(p, "text")))
+            break
 
 if __name__ == "__main__":
     main()
